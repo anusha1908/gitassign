@@ -1,0 +1,3 @@
+# gitassign
+Assignment
+This file is to test clone command
