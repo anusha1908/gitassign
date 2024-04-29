@@ -1,4 +1,4 @@
-name: Pull Request Review Labeler
+name: Pull RequestReview Labeler
 
 on:
   pull_request:
