@@ -1,4 +1,4 @@
-name: Pull Request Review Labeler
+name: Pull Request Review Labele
 
 on:
   pull_request:
@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Check if opsTrack member
         id: opsTrack_member_check
-        run: echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.isMember }}"
+        run: echo "Author is opsTrack member:${{ needs.check_author_team_membership.outputs.isMember }}"
 
       - name: Add label if opsTrack member
         if: steps.opsTrack_member_check.outputs.isMember == 'true'
