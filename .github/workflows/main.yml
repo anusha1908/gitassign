@@ -1,4 +1,4 @@
-name: Pull Request Review Labeler
+name: Pull Request Review Labele
 
 on:
   pull_request:
@@ -8,28 +8,16 @@ jobs:
   check_author_team_membership:
     runs-on: ubuntu-latest
     steps:
-      - name: Get opsTrack team members
-        id: get_opsTrack_members
-        run: |
-          team_members=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/orgs/${{ github.event.organization.login }}/teams/opsTrack/members" | \
-              grep -oP '"login": "\K([^"]+)')
-          echo "::set-output name=opsTrackMembers::$team_members"
-        shell: bash
-
       - name: Check if author is opsTrack member
         id: check_author
         run: |
-          author_login=$(jq -r '.pull_request.user.login' $GITHUB_EVENT_PATH)
-          opsTrack_members=$(echo "${{ steps.get_opsTrack_members.outputs.opsTrackMembers }}" | tr '\n' ' ')
-          is_member=0
-          for member in $opsTrack_members; do
-            if [ "$member" == "$author_login" ]; then
-              is_member=1
-              break
-            fi
-          done
-          echo "::set-output name=isMember::$is_member"
+          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/orgs/${{ github.event.organization.login }}/teams/opsTrack/members")
+          if [[ $(echo "$response" | grep -c "\"login\": \"${{ github.event.pull_request.user.login }}\"") -gt 0 ]]; then
+            echo "::set-output name=isMember::true"
+          else
+            echo "::set-output name=isMember::false"
+          fi
 
   label_pr_needing_reviews:
     needs: check_author_team_membership
@@ -37,10 +25,10 @@ jobs:
     steps:
       - name: Check if opsTrack member
         id: opsTrack_member_check
-        run: echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.isMember }}"
+        run: echo "Author is opsTrack member:${{ needs.check_author_team_membership.outputs.isMember }}"
 
       - name: Add label if opsTrack member
-        if: steps.opsTrack_member_check.outputs.isMember == '1'
+        if: steps.opsTrack_member_check.outputs.isMember == 'true'
         run: |
           echo "Author is a member of opsTrack team, adding label..."
           curl -X POST \
