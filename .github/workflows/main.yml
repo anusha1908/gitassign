@@ -1,63 +1,34 @@
-name: Pull Request Review Labeler
-
+name: Label issues
 on:
-  pull_request:
-    types: [opened]
+  issues:
+    types:
+      - reopened
+      - opened
 
 jobs:
   check_author_team_membership:
     runs-on: ubuntu-latest
     steps:
-      - name: Get teams
-        id: get_teams
-        uses: octokit/request-action@v2.x
-        with:
-          route: GET /orgs/:org/teams
-          org: ${{ github.event.organization.login }}
-          headers:
-            authorization: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check if author is a member of opsTrack team
-        id: check_author_membership
+      - name: Check if author is opsTrack member
+        id: check_author
         run: |
-          const teams = ${{fromJson(steps.get_teams.outputs.data)}};
-          const opsTrackTeam = teams.find(team => team.slug === 'opsTrack');
-          const teamMembers = await github.rest.teams.listMembersInOrg({
-            org: context.payload.organization.login,
-            team_slug: opsTrackTeam.slug,
-            headers: {
-              authorization: `token ${{ secrets.GITHUB_TOKEN }}`
-            }
-          });
-          const author = context.payload.sender.login;
-          const isMember = teamMembers.some(member => member.login === author);
+          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/orgs/${{ github.event.organization.login }}/teams/opsTrack/members")
+          if echo "$response" | grep -q "\"login\": \"${{ github.event.issue.user.login }}\""; then
+            echo "::set-output name=isMember::true"
+          else
+            echo "::set-output name=isMember::false"
+          fi
 
-          if (isMember) {
-            console.log('Author is a member of opsTrack team');
-            core.setOutput('opsTrackMember', 'true');
-          } else {
-            console.log('Author is not a member of opsTrack team');
-            core.setOutput('opsTrackMember', 'false');
-          }
-
-  label_pr_needing_reviews:
+  label_issues:
     needs: check_author_team_membership
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
-      - name: Check if opsTrack member
-        run: echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
-        id: opsTrack_member_check
-
-      - name: Add label if opsTrack member
-        if: steps.opsTrack_member_check.outputs.opsTrackMember == 'true'
-        uses: actions/github-script@v5
-        with:
-          script: |
-            github.issues.addLabels({
-              owner: context.payload.repository.owner.login,
-              repo: context.payload.repository.name,
-              issue_number: context.payload.pull_request.number,
-              labels: ['codeowner reviews required']
-            });
-          script-output: |
-            { token: '${{ secrets.GITHUB_TOKEN }}' }
+      - name: Label issues if opsTrack member
+        if: steps.check_author_team_membership.outputs.isMember == 'true'
+        run: |
+          gh issue edit ${{ github.event.issue.number }} --add-label 2 codeowners reviews required
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
