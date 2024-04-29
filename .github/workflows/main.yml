@@ -31,7 +31,6 @@ jobs:
           });
           const author = context.payload.sender.login;
           const isMember = teamMembers.some(member => member.login === author);
-
           if (isMember) {
             console.log('Author is a member of opsTrack team');
             core.setOutput('opsTrackMember', 'true');
@@ -45,8 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check if opsTrack member
-        run: echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
         id: opsTrack_member_check
+        run: |
+          echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
 
       - name: Add label if opsTrack member
         if: steps.opsTrack_member_check.outputs.opsTrackMember == 'true'
@@ -60,4 +60,4 @@ jobs:
               labels: ['codeowner reviews required']
             });
           script-output: |
-            { token: '${{ secrets.GITHUB_TOKEN }}' }
+            token: ${{ secrets.GITHUB_TOKEN }}
