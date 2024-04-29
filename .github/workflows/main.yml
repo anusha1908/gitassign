@@ -45,19 +45,15 @@ jobs:
     steps:
       - name: Check if opsTrack member
         id: opsTrack_member_check
-        run: |
-          echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
+        run: echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
 
       - name: Add label if opsTrack member
         if: steps.opsTrack_member_check.outputs.opsTrackMember == 'true'
-        uses: actions/github-script@v5
-        with:
-          script: |
-            github.issues.addLabels({
-              owner: context.payload.repository.owner.login,
-              repo: context.payload.repository.name,
-              issue_number: context.payload.pull_request.number,
-              labels: ['codeowner reviews required']
-            });
-          script-output: |
-            token: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Author is a member of opsTrack team, adding label..."
+          echo "Adding label 'codeowner reviews required' to the PR..."
+          curl -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/labels" \
+            -d '["codeowner reviews required"]'
