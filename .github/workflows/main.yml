@@ -8,36 +8,15 @@ jobs:
   check_author_team_membership:
     runs-on: ubuntu-latest
     steps:
-      - name: Get teams
-        id: get_teams
-        uses: octokit/request-action@v2.x
-        with:
-          route: GET /orgs/:org/teams
-          org: ${{ github.event.organization.login }}
-          headers:
-            authorization: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check if author is a member of opsTrack team
-        id: check_author_membership
+      - name: Check if author is opsTrack member
+        id: check_author
         run: |
-          const teams = ${{fromJson(steps.get_teams.outputs.data)}};
-          const opsTrackTeam = teams.find(team => team.slug === 'opsTrack');
-          const teamMembers = await github.rest.teams.listMembersInOrg({
-            org: context.payload.organization.login,
-            team_slug: opsTrackTeam.slug,
-            headers: {
-              authorization: `token ${{ secrets.GITHUB_TOKEN }}`
-            }
-          });
-          const author = context.payload.sender.login;
-          const isMember = teamMembers.some(member => member.login === author);
-          if (isMember) {
-            console.log('Author is a member of opsTrack team');
-            core.setOutput('opsTrackMember', 'true');
-          } else {
-            console.log('Author is not a member of opsTrack team');
-            core.setOutput('opsTrackMember', 'false');
-          }
+          team_members=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/orgs/${{ github.event.organization.login }}/teams/opsTrack/members" | \
+              jq -r '.[].login')
+          author_login=$(jq -r '.pull_request.user.login' $GITHUB_EVENT_PATH)
+          is_member=$(echo "$team_members" | grep -c "$author_login")
+          echo "::set-output name=isMember::$is_member"
 
   label_pr_needing_reviews:
     needs: check_author_team_membership
@@ -45,15 +24,14 @@ jobs:
     steps:
       - name: Check if opsTrack member
         id: opsTrack_member_check
-        run: echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
+        run: echo "Author is opsTrack member:${{ needs.check_author_team_membership.outputs.isMember }}"
 
       - name: Add label if opsTrack member
-        if: steps.opsTrack_member_check.outputs.opsTrackMember == 'true'
+        if: steps.opsTrack_member_check.outputs.isMember == '1'
         run: |
           echo "Author is a member of opsTrack team, adding label..."
-          echo "Adding label 'codeowner reviews required' to the PR..."
           curl -X POST \
-            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/labels" \
-            -d '["codeowner reviews required"]'
+            -d '{"labels":["codeowner reviews required"]}'
