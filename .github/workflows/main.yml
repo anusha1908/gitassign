@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check if opsTrack member
-        run: echo "Author is opsTrack member: ${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
+        run: echo "Author is opsTrack member:${{ needs.check_author_team_membership.outputs.opsTrackMember }}"
         id: opsTrack_member_check
 
       - name: Add label if opsTrack member
