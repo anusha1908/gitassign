@@ -14,7 +14,7 @@ jobs:
           team_members=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               "https://api.github.com/orgs/${{ github.event.organization.login }}/teams/opsTrack/members" | \
               jq -r '.[].login')
-          author_login=$(jq -r '.pull_request.user.login' $GITHUB_EVENT_PATH)
+          author_login=$(jq -r '.sender.login' $GITHUB_EVENT_PATH)
           is_member=$(echo "$team_members" | grep -c "$author_login")
           echo "::set-output name=isMember::$is_member"
 
